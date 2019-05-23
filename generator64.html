@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<HTML STYLE='background: white;'>
+
+	<HEAD>
+		<TITLE>Generator</TITLE>
+		<STYLE>
+		*
+		{
+			margin: 0;
+			padding: 0;
+			z-index: 10;
+		}
+		</STYLE>
+	</HEAD>
+
+	<BODY STYLE='width: 1000px; position: relative; background: white;' ondragstart="return false;" ondrop="return false;">
+		<IMG ONDRAGSTART="return false;" ONDROP="return false;" ID='image' SRC='' WIDTH='960' HEIGHT='960' STYLE='position: absolute; top: 5px; left: 5px; display: block; z-index: 1; opacity: 0.6;'>
+		<DIV ID='symbol' STYLE='position: absolute; top: 5px; width: 900px; padding-left: 60px; margin-top: -240px; height: 960px; left: 5px; z-index: 1; opacity: 0.6; font: 7000% verdana;'></DIV>
+		<CANVAS ONMOUSEMOVE='mouse_move(event)' ONMOUSEDOWN='mouse_down(event)' ONMOUSEUP='mouse_up()' ONMOUSEOUT='mouse_out()' ID='canvas' WIDTH='960' HEIGHT='960' STYLE='position: absolute; top: 5px; left: 5px; display: block; z-index: 10;'></CANVAS>
+		
+		<DIV STYLE='position: absolute; top: 5px; left: 970px; width: 300px; font: bold 100% verdana;'>фон - символ:</DIV>
+		<INPUT TYPE="text" MAXLENGTH="1" ID="text_input" ONINPUT='load_symbol(this)' STYLE='display: block; position: absolute; top: 30px; left: 970px; cursor: pointer; width: 30px;'>
+		<INPUT TYPE='button' ONCLICK='symb(0)' STYLE='width: 30px; position: absolute; top: 30px; left: 1015px; cursor: pointer;' VALUE="+">
+		<INPUT TYPE='button' ONCLICK='symb(1)' STYLE='width: 30px; position: absolute; top: 30px; left: 1050px; cursor: pointer;' VALUE="-">
+		<INPUT TYPE='button' ONCLICK='symb(2)' STYLE='width: 30px; position: absolute; top: 30px; left: 1085px; cursor: pointer;' VALUE="&#9650;">
+		<INPUT TYPE='button' ONCLICK='symb(3)' STYLE='width: 30px; position: absolute; top: 30px; left: 1120px; cursor: pointer;' VALUE="&#9660;">
+		<INPUT TYPE='button' ONCLICK='symb(5)' STYLE='width: 30px; position: absolute; top: 30px; left: 1155px; cursor: pointer;' VALUE="&#9668;">
+		<INPUT TYPE='button' ONCLICK='symb(4)' STYLE='width: 30px; position: absolute; top: 30px; left: 1190px; cursor: pointer;' VALUE="&#9658;">
+		
+		<DIV STYLE='position: absolute; top: 60px; left: 970px; width: 300px; font: bold 100% verdana;'>Фон - изображение:</DIV>
+		<INPUT TYPE="file" ID="files" ONCHANGE='load_image(this.files)' STYLE='display: block; position: absolute; top: 85px; left: 970px; cursor: pointer;'>
+		
+		<DIV STYLE='position: absolute; left: 970px; top: 115px; font: bold 100% verdana;'>Курсор:</DIV>
+		<DIV ID="pos" STYLE='position: absolute; left: 1100px; top: 115px; font: bold 100% verdana; width: 150px; height: 20px;'>00 00</DIV>
+		
+		<INPUT TYPE='button' VALUE='Конвертировать изображение в HEX' ONCLICK='convert_hex()' STYLE='position: absolute; left: 970px; display: block; top: 150px; width: 270px; cursor: pointer;'>
+		<INPUT TYPE='button' VALUE='Конвертировать HEX в изображение' ONCLICK='parse_hex()'   STYLE='position: absolute; left: 970px; display: block; top: 180px; width: 270px; cursor: pointer;'>
+		<INPUT TYPE='button' ID='full' VALUE='Включить полный экран' ONCLICK='full_on (document.body)'  STYLE='position: absolute; left: 970px; display: block; top: 210px; width: 270px; cursor: pointer;'>
+		<INPUT ID='mode' ONCLICK='cursor_switch("button")' TYPE='button' VALUE='Курсор 1 пиксель' STYLE='position: absolute; left: 970px; top: 240px; width: 270px; cursor: pointer;'>
+		
+		
+		<DIV STYLE='position: absolute; left: 970px; top: 270px; font: bold 100% verdana;'>Превью:</DIV>
+		<CANVAS ID='preview' WIDTH='64' HEIGHT='64' STYLE='position: absolute; top: 295px; left: 970px; display: block; z-index: 10; background: #E0EAEA;'></CANVAS>
+		<INPUT TYPE='button' ONCLICK='prev(0)' STYLE='width: 30px; position: absolute; top: 340px; left: 1085px; cursor: pointer;' VALUE="&#9650;">
+		<INPUT TYPE='button' ONCLICK='prev(1)' STYLE='width: 30px; position: absolute; top: 340px; left: 1120px; cursor: pointer;' VALUE="&#9660;">
+		<INPUT TYPE='button' ONCLICK='prev(2)' STYLE='width: 30px; position: absolute; top: 340px; left: 1155px; cursor: pointer;' VALUE="&#9668;">
+		<INPUT TYPE='button' ONCLICK='prev(3)' STYLE='width: 30px; position: absolute; top: 340px; left: 1190px; cursor: pointer;' VALUE="&#9658;">
+		
+		
+		<TEXTAREA ID='result' STYLE='position: absolute; display: block; top: 370px; left: 970px; font: 150% monospace; width: 260px; padding: 5px; height: 300px; resize: none;' VALUE='' PLACEHOLDER='Вставьте матрицу HEX значений'></TEXTAREA>
+		<INPUT TYPE='button' VALUE='Копировать в буфер обмена' ONCLICK='clipboard()' STYLE='position: absolute; left: 970px; display: block; top: 690px; width: 272px; cursor: pointer;'>
+	</BODY>
+
+
+
+
+	<SCRIPT>
+		// draw grid
+		var canvas  = document.getElementById('canvas');
+		var preview = document.getElementById('preview');
+		
+		var canvas_ctx  = canvas.getContext ('2d');
+		var preview_ctx = preview.getContext('2d');
+		
+		var canvas_ctx 
+		canvas_ctx.lineWidth = 1;
+		
+		for (let i = 0; i < 65; i++)
+		{
+			if (i == 32 || i == 16 || i == 48) canvas_ctx.strokeStyle  = "red"; else canvas_ctx.strokeStyle  = "#BBBBBB";
+			canvas_ctx.beginPath();
+			canvas_ctx.moveTo(i * 15, 0);
+			canvas_ctx.lineTo(i * 15, 960);
+			canvas_ctx.stroke();
+			
+			canvas_ctx.beginPath();
+			canvas_ctx.moveTo(0, i * 15);
+			canvas_ctx.lineTo(960, i * 15);
+			canvas_ctx.stroke();
+		}
+
+	  
+	  
+		var array = [];
+		var mode = 1;
+		var cursor = 1;
+		var mouse_status = false;
+		var full_status = false;
+
+		var old_x = 0;
+		var old_y = 0
+		
+		// create 2-dim array 32x32
+		for (let x = 0; x < 64; x++)
+		{
+			array[x] = [];
+			for (let y = 0; y < 64; y++) array [x][y] = 0;
+		};
+		
+		// ========================================================
+		// CELL ONMOVE
+		// ========================================================
+		function mouse_move (event)
+		{
+			let x = event.offsetX;
+			let y = event.offsetY;
+			let	x0 = Math.floor (x / 15);
+			let	y0 = Math.floor (y / 15);
+
+			if (x0 > 63 || y0 > 63) return;
+			document.getElementById("pos").innerHTML = "x = " + x0 + ", y = " + y0;
+			
+			for (let i = 0; i < 65; i++)
+			{
+				if (i == 32 || i == 16 || i == 48) canvas_ctx.strokeStyle  = "red"; else canvas_ctx.strokeStyle  = "#BBBBBB";
+				canvas_ctx.beginPath ();
+				canvas_ctx.moveTo (i * 15, 0);
+				canvas_ctx.lineTo (i * 15, 960);
+				canvas_ctx.stroke ();
+				
+				canvas_ctx.beginPath ();
+				canvas_ctx.moveTo (0, i * 15);
+				canvas_ctx.lineTo (960, i * 15);
+				canvas_ctx.stroke ();
+			}
+
+			canvas_ctx.strokeStyle = "black";
+			if (cursor == 9) canvas_ctx.rect (x0 * 15 - 15, y0  * 15 - 15, 45, 45); else canvas_ctx.rect (x0 * 15, y0  * 15, 15, 15);
+			canvas_ctx.stroke();
+			
+			if (mouse_status == true)
+			{
+				if (mode == 0)
+				{
+					if (cursor == 1)
+					{
+						array [x0][y0] = 0;
+						canvas_ctx.clearRect (x0 * 15 + 3, y0 * 15 + 3, 9, 9);
+						preview_ctx.clearRect (x0, y0, 1, 1);
+					}
+					else
+					{
+						clear9px (x0, y0);
+					}
+					
+				}
+				else
+				{
+					if (cursor == 1)
+					{
+						array[x0][y0] = 1;
+						
+						canvas_ctx.fillStyle = "#00FF00";
+						canvas_ctx.fillRect (x0 * 15 + 3, y0 * 15 + 3, 9, 9);
+						
+						preview_ctx.fillStyle = "black";
+						preview_ctx.fillRect (x0, y0, 1, 1);
+					}
+					else write9px (x0, y0);
+				}
+
+			}
+			
+			old_x = x0;
+			old_y = y0;
+		};
+		
+		
+		function mouse_down (event)
+		{
+			mouse_status = true;
+			
+			let x = event.offsetX;
+			let y = event.offsetY;
+			
+			let	x0 = Math.floor (x / 15);
+			let	y0 = Math.floor (y / 15);
+
+			if (event.which === 3)
+			{
+				if (cursor == 1)
+				{
+					array [x0][y0] = 0;
+					canvas_ctx.clearRect (x0 * 15 + 3, y0 * 15 + 3, 9, 9);
+					preview_ctx.clearRect (x0, y0, 1, 1);
+				}
+				else clear9px (x0, y0);
+				
+				mode = 0;
+			}
+			
+			if (event.which === 1)
+			{
+				if (cursor == 1)
+				{
+					array[x0][y0] = 1;
+					canvas_ctx.fillStyle = "#00FF00";
+					canvas_ctx.fillRect (x0 * 15 + 3, y0 * 15 + 3, 9, 9);
+					preview_ctx.fillStyle = "black";
+					preview_ctx.fillRect (x0, y0, 1, 1);
+				}
+				else write9px (x0, y0);
+				
+				mode = 1;
+			}
+
+			old_x = x0;
+			old_y = y0;
+		}
+		
+
+		window.oncontextmenu = function (event)
+		{
+			event.preventDefault()
+		}
+
+		
+		function mouse_up ()
+		{
+			mouse_status = false;
+		};
+		
+		function mouse_out ()
+		{
+			mouse_status = false;
+		};
+		
+		
+		function cursor_switch (event)
+		{
+			if (cursor == 1)
+			{
+				cursor = 9;
+				document.getElementById("mode").value = "Курсор 3x3 пикселя";
+			}
+			else 
+			{
+				cursor = 1;
+				document.getElementById("mode").value = "Курсор 1 пиксель";
+			}
+		};
+
+		
+		
+		// ============================
+		// CONVERT TO HEX
+		// ============================	
+		
+		function add8 (value)
+		{
+			if      (value.length == 8) return "0x" + value;
+			else if (value.length == 7) return "0x0" + value;
+			else if (value.length == 6) return "0x00" + value;
+			else if (value.length == 5) return "0x000" + value;
+			else if (value.length == 4) return "0x0000" + value;
+			else if (value.length == 3) return "0x00000" + value;
+			else if (value.length == 2) return "0x000000" + value;
+			else if (value.length == 1) return "0x0000000" + value;
+			else if (value.length == 0) return "0x00000000" + value;
+		}
+		
+		function add32 (value)
+		{
+			let l = value.length;
+			let out = "";
+			for (let i = 0; i < 32 - l; i++) out += "0";
+			return out + value;
+		}
+		
+		function convert_hex ()
+		{
+			let out = "";
+			let bin = "";
+			let hex = "";
+			let dec = "";
+			
+			for (let y = 0; y < 64; y++)
+			{
+				for (let z = 0; z < 2; z++)
+				{
+					bin = "";
+					for (let x = 0; x < 32; x++) bin += array[x + z * 32][y];
+					
+					dec = parseInt(bin, 2);
+					hex = add8(dec.toString(16).toUpperCase());
+					out += hex;
+					
+					if (y != 63)
+					{
+						out += ",";
+					}
+					else
+					{
+						if (z == 0) out += ",";
+					}
+				}
+				if (y == 15 || y == 31 || y == 47 || y == 63 || y == 79 || y == 95 || y == 111) out += "\n";
+			}
+			document.getElementById("result").value = out;
+			
+			
+		}
+				
+				
+		// ============================
+		// PARSE HEX
+		// ============================	
+		function parse_hex ()
+		{
+			let value = document.getElementById("result").value.split(",");
+			let hex = "";
+			let dec = "";
+			let bin = "";
+			let y = 0;
+			
+			console.log("value.length = " + value.length);
+			
+			if (value.length != 128)
+			{
+				console.log("Ошибка конвертации HEX в изображение!");
+				return;
+			}
+			
+			clear_array ();
+						
+			for (let z = 0; z < 128; z += 2)
+			{
+				hex = value[z].trim();
+				hex = hex.substring(2); // cut 0x
+				dec = parseInt (hex, 16);
+				bin = add32(dec.toString(2));
+				for (let x = 0; x < 32; x++) array [x][y] = parseInt(bin.charAt(x));
+				
+				hex = value[z + 1].trim();
+				hex = hex.substring(2); // cut 0x
+				dec = parseInt (hex, 16);
+				bin = add32(dec.toString(2));
+				for (let x = 32; x < 64; x++) array [x][y] = parseInt(bin.charAt(x - 32));
+				
+				y++;
+			}
+			
+			redraw_image ();
+			
+			document.getElementById("result").value = "";
+		}
+		
+		// ============================
+		// REDRAW IMAGE
+		// ============================
+		function redraw_image ()
+		{
+			canvas_ctx.clearRect  (0, 0, 959, 959);
+			preview_ctx.clearRect (0, 0, 64,  64);
+			
+		for (let i = 0; i < 65; i++)
+		{
+			if (i == 32 || i == 16 || i == 48) canvas_ctx.strokeStyle  = "red"; else canvas_ctx.strokeStyle  = "gray";
+			canvas_ctx.beginPath();
+			canvas_ctx.moveTo(i * 15, 0);
+			canvas_ctx.lineTo(i * 15, 960);
+			canvas_ctx.stroke();
+			
+			canvas_ctx.beginPath();
+			canvas_ctx.moveTo(0, i * 15);
+			canvas_ctx.lineTo(960, i * 15);
+			canvas_ctx.stroke();
+		}
+			
+			for (let x = 0; x < 64; x++)
+			{
+				for (let y = 0; y < 64; y++)
+				{
+					if (array [x][y] == 1)
+					{
+						canvas_ctx.fillStyle = "#00FF00";
+						canvas_ctx.fillRect (x * 15 + 3, y * 15 + 3, 9, 9);
+						
+						preview_ctx.fillStyle = "black";
+						preview_ctx.fillRect (x, y, 1, 1);
+					}
+				}
+			}
+		}
+		
+		
+		// ============================
+		// CLEAR ARRAY (WITH 0)
+		// ============================
+		function clear_array ()
+		{
+			for (let y = 0; y < 64; y++)
+			{
+				for (let x = 0; x < 64; x++) array [x][y] = 0;
+			}
+		}
+		
+		// ============================
+		// LOAD IMAGE
+		// ============================
+		var reader = new FileReader();
+		
+		function load_image (files)
+		{
+			reader.onload = function(event)
+			{
+				var dataUri = event.target.result;
+				document.getElementById("image").src = dataUri;
+				document.getElementById("image" ).style.display = "block";
+				document.getElementById("symbol").style.display = "none";
+			};
+		 
+			reader.onerror = function(event)
+			{
+				console.error("Файл не может быть прочитан! код " + event.target.error.code);
+			};
+		 
+			reader.readAsDataURL(files[0]);
+		};
+		
+		// ============================
+		// LOAD SYMBOL
+		// ============================
+		function load_symbol (element)
+		{
+			document.getElementById("image" ).style.display = "none";
+			document.getElementById("symbol").style.display = "block";
+			document.getElementById("symbol").innerHTML = element.value;
+		};
+		
+		// ============================
+		// CHANGE SYMBOL
+		// ============================
+		var sym_font_size = 7000;
+		var sym_x = 60;
+		var sym_y = -240;
+		
+		function symb (value)
+		{
+			let x = document.getElementById("symbol");
+			
+			if (value == 0)
+			{
+				if (sym_font_size < 10000) sym_font_size += 100;
+				x.style.font = sym_font_size + "% verdana";
+			}
+			
+			if (value == 1)
+			{
+				if (sym_font_size > 100) sym_font_size -= 100;
+				x.style.font = sym_font_size + "% verdana";
+			}
+			
+			if (value == 2) 
+			{
+				if (sym_y > -500) sym_y -= 5;
+				x.style.marginTop = sym_y + "px";
+			}
+			
+			if (value == 3) 
+			{
+				if (sym_y < 500) sym_y += 5;
+				x.style.marginTop = sym_y + "px";
+			}
+			
+			if (value == 4) 
+			{
+				if (sym_x < 500) sym_x += 5;
+				x.style.paddingLeft = sym_x + "px";
+			}
+			
+			if (value == 5) 
+			{
+				if (sym_x > -200) sym_x -= 5;
+				x.style.paddingLeft = sym_x + "px";
+			}
+			
+		};
+		
+		
+		function prev (value)
+		{
+			if (value == 0)
+			{
+				for (let y = 0; y < 63; y++)
+				{
+					for (let x = 0; x < 64; x++) array[x][y] = array[x][y + 1];
+				}
+				for (let x = 0; x < 64; x++) array[x][63] = 0;
+			}
+			
+			if (value == 1)
+			{
+				for (let y = 63; y > 0; y--)
+				{
+					for (let x = 0; x < 64; x++) array[x][y] = array[x][y - 1];
+				}
+				for (let x = 0; x < 64; x++) array[x][0] = 0;
+			}
+			
+			if (value == 2)
+			{
+				for (let x = 0; x < 63; x++)
+				{
+					for (let y = 0; y < 64; y++) array[x][y] = array[x + 1][y];
+				}
+				for (let y = 0; y < 64; y++) array[63][y] = 0;
+			}
+			
+			if (value == 3)
+			{
+				for (let x = 63; x > 0; x--)
+				{
+					for (let y = 0; y < 64; y++) array[x][y] = array[x - 1][y];
+				}
+				for (let y = 0; y < 64; y++) array[0][y] = 0;
+			}
+		
+			redraw_image ();
+		}
+		
+		// ============================
+		// FULL SCREEN
+		// ============================
+		function full_on (element)
+		{
+			if (full_status == 0)
+			{
+				if      (element.requestFullscreen      ) element.requestFullscreen ();
+				else if (element.webkitRequestFullscreen) element.webkitRequestFullscreen ();
+				else if (element.mozRequestFullscreen   ) element.mozRequestFullscreen ();
+				document.getElementById("full").value = "Выключить полноэкранный режим";
+				full_status = 1;
+			}
+			else
+			{
+				if      (document.CancelFullscreen      ) document.cancelFullscreen ();
+				else if (document.webkitCancelFullscreen) document.webkitCancelFullscreen ();
+				else if (document.exitFullscreen()      ) document.exitFullscreen ();
+				else if (element.mozCancelFullscreen    ) element.mozCancelFullscreen ();
+				document.getElementById("full").value = "Включить полноэкранный режим";
+				full_status = 0;
+			}
+		};
+		
+		// ============================
+		// CLIPBOARD
+		// ============================
+		function clipboard ()
+		{  
+			document.getElementById("result").select();
+			
+			try
+			{  
+				let successful = document.execCommand('copy');  
+				let msg = successful ? 'successful' : 'unsuccessful';  
+				console.log('Copy HEX was ' + msg);  
+			}
+			catch (err)
+			{  
+				console.log('Oops, unable to copy HEX');  
+			}  
+
+			window.getSelection().removeAllRanges();  
+		};
+		
+		
+		
+		
+		
+		
+		function clear9px (x, y)
+		{
+			for (let x0 = x - 1; x0 <= x + 1; x0++)
+			{
+				for (let y0 = y - 1; y0 <= y + 1; y0++)
+				{
+					if (x0 >= 0 && y0 >= 0 && x0 <= 63 && y0 <= 63)
+					{
+						array [x0][y0] = 0;
+						canvas_ctx.clearRect (x0 * 15 + 3, y0 * 15 + 3, 9, 9);
+						preview_ctx.clearRect (x0, y0, 1, 1);
+					}
+				}
+			}
+		}
+		
+		
+		function write9px (x, y)
+		{
+			for (let x0 = x - 1; x0 <= x + 1; x0++)
+			{
+				for (let y0 = y - 1; y0 <= y + 1; y0++)
+				{
+					if (x0 >= 0 && y0 >= 0 && x0 <= 63 && y0 <= 63)
+					{
+						array[x0][y0] = 1;
+						canvas_ctx.fillStyle = "#00FF00";
+						canvas_ctx.fillRect (x0 * 15 + 3, y0 * 15 + 3, 9, 9);
+						preview_ctx.fillStyle = "black";
+						preview_ctx.fillRect (x0, y0, 1, 1);
+					}
+				}
+			}
+		}
+		
+		
+		
+
+	</SCRIPT>
+
+</HTML>
